@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-)
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CURRENCY_EURO
 from homeassistant.core import HomeAssistant
@@ -65,10 +61,14 @@ async def async_setup_entry(
 
 
 @dataclass(frozen=True, slots=True)
-class UbianSensorDescription(SensorEntityDescription):
+class UbianSensorDescription:
     """Describe an Ubian card sensor."""
 
-    value_fn: Callable[[UbianCard], Any] = field(default=lambda card: None)
+    key: str
+    translation_key: str
+    value_fn: Callable[[UbianCard], Any]
+    device_class: SensorDeviceClass | None = None
+    native_unit_of_measurement: str | None = None
 
 
 SENSOR_DESCRIPTIONS: tuple[UbianSensorDescription, ...] = (
@@ -115,7 +115,7 @@ class UbianCardSensor(
     ) -> None:
         """Initialize the Ubian card sensor."""
         super().__init__(coordinator)
-        self.entity_description = description
+        self._description = description
         self._entry = entry
         self._card_id = card.card_id
         self._attr_unique_id = f"{entry.entry_id}_{card.card_id}_{description.key}"
@@ -137,7 +137,7 @@ class UbianCardSensor(
         card = self._card
         if card is None:
             return None
-        return self.entity_description.value_fn(card)
+        return self._description.value_fn(card)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

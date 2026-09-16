@@ -9,6 +9,9 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import UbianDataUpdateCoordinator
 
+# Preload the platform module to avoid import_module blocking warnings in HA.
+from . import sensor as _sensor  # noqa: F401
+
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 

@@ -36,6 +36,11 @@
       "discount_validity": {
         "name": "Platnosť zľavy"
       }
+    },
+    "event": {
+      "card_transaction": {
+        "name": "Transakcia"
+      }
     }
   }
 }

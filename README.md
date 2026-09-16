@@ -10,6 +10,8 @@ Custom Home Assistant integration for Ubian card credit balances.
   credit balance, card validity, card type and discount validity.
 - Entities expose card id, display card number, description, carrier and parsed
   card metadata as attributes.
+- Event entities are created for card transactions and fire when a newly observed
+  latest transaction appears.
 - The current API client follows the observed Ubian web flow from OWASP ZAP:
   login, load `/eshop`, parse cards from HTML, temporarily switch active cards
   through `/card/set_active`, and parse each active card balance from `/eshop`.

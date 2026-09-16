@@ -76,3 +76,68 @@ def test_parse_eshop_page_cards_and_active_credit() -> None:
     assert page.cards[0].card_number == "1 1111 1111"
     assert page.cards[0].active is True
     assert page.cards[1].active is False
+
+
+def test_parse_transactions_page() -> None:
+    """Parse latest transactions from Ubian transactions HTML."""
+    api = _load_api_module()
+
+    transactions = api._parse_transactions_page(
+        """
+        <table class="new-layout transactions">
+            <tbody>
+                <tr>
+                    <td class="datetime">
+                        <span class="hidden-mobile">15. 09. 2026</span>
+                        <span class="visible-mobile">15.09</span>
+                        <span class="vertical-line">|</span>
+                        <span>20:00</span>
+                    </td>
+                    <td class="green">
+                        <span class="mobile_td_bold mobile_block">Dobitie kreditu</span>
+                        <span class="vertical-line">|</span>
+                        ARRIVA Nitra
+                    </td>
+                    <td><span class="mobile_block visible-mobile"></span></td>
+                    <td class="mobile_price_pdf">
+                        <span class="green">10,00&nbsp;€</span>
+                        <div class="pdf_block">
+                            <a href="/transactions/pdf/4-14268050.pdf" class="download">
+                                <span class="icon icon-download"></span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="datetime">
+                        <span class="hidden-mobile">14. 09. 2026</span>
+                        <span class="visible-mobile">14.09</span>
+                        <span class="vertical-line">|</span>
+                        <span>14:41</span>
+                    </td>
+                    <td class="">
+                        <span class="mobile_td_bold mobile_block">Jazda</span>
+                        <span class="vertical-line">|</span>
+                        ARRIVA Nitra
+                    </td>
+                    <td><span class="mobile_block visible-mobile"></span></td>
+                    <td class="mobile_price_pdf">
+                        <span class="red">-0,63&nbsp;€</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        """
+    )
+
+    assert len(transactions) == 2
+    assert transactions[0].occurred_at == "2026-09-15T20:00:00"
+    assert transactions[0].transaction_type == "Dobitie kreditu"
+    assert transactions[0].merchant == "ARRIVA Nitra"
+    assert transactions[0].amount == Decimal("10.00")
+    assert (
+        transactions[0].pdf_url
+        == "https://www.ubian.sk/transactions/pdf/4-14268050.pdf"
+    )
+    assert transactions[1].transaction_type == "Jazda"
+    assert transactions[1].amount == Decimal("-0.63")

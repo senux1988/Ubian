@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 from html import unescape
 from html.parser import HTMLParser
@@ -17,6 +18,7 @@ BASE_URL = "https://www.ubian.sk"
 LOGIN_PATH = "/login"
 ESHOP_PATH = "/eshop"
 SET_ACTIVE_CARD_PATH = "/card/set_active"
+TRANSACTIONS_PATH = "/transactions/"
 
 CREDIT_PATTERN = re.compile(r"Kredit\s+([0-9\s]+(?:[,.][0-9]+)?)\s*€")
 COMPANY_PATTERN = re.compile(
@@ -27,6 +29,24 @@ CARD_INFO_PATTERN = re.compile(
     r'<li class="item">\s*<strong>(.*?)</strong>\s*<p>(.*?)</p>\s*</li>',
     re.DOTALL,
 )
+TRANSACTION_LINK_PATTERN = re.compile(r'href="/transactions/([0-9]+)"')
+TRANSACTION_ROW_PATTERN = re.compile(
+    r"<tr>\s*"
+    r'<td class="datetime">(.*?)</td>\s*'
+    r'<td class="[^"]*">(.*?)</td>\s*'
+    r"<td>(.*?)</td>\s*"
+    r'<td class="mobile_price_pdf">(.*?)</td>\s*'
+    r"</tr>",
+    re.DOTALL,
+)
+TRANSACTION_AMOUNT_PATTERN = re.compile(
+    r'<span class="(?P<class>red|green)">(?P<amount>.*?)</span>', re.DOTALL
+)
+TRANSACTION_DATE_PATTERN = re.compile(
+    r'<span class="hidden-mobile">(?P<date>.*?)</span>.*?<span>(?P<time>[0-9]{1,2}:[0-9]{2})</span>',
+    re.DOTALL,
+)
+TRANSACTION_PDF_PATTERN = re.compile(r'href="(?P<pdf>/transactions/pdf/[^"]+)"')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +67,31 @@ class UbianCard:
     description: str
     credit_balance: Decimal
     raw: dict[str, Any]
+
+
+@dataclass(slots=True, frozen=True)
+class UbianTransaction:
+    """A parsed Ubian card transaction."""
+
+    transaction_id: str
+    occurred_at: str
+    transaction_type: str
+    merchant: str | None
+    line: str | None
+    amount: Decimal
+    pdf_url: str | None
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return a Home Assistant friendly representation."""
+        return {
+            "transaction_id": self.transaction_id,
+            "occurred_at": self.occurred_at,
+            "transaction_type": self.transaction_type,
+            "merchant": self.merchant,
+            "line": self.line,
+            "amount": str(self.amount),
+            "pdf_url": self.pdf_url,
+        }
 
 
 @dataclass(slots=True, frozen=True)
@@ -71,6 +116,7 @@ class _ParsedEshopPage:
     card_validity: str | None
     card_type: str | None
     discount_validity: str | None
+    transaction_account_id: str | None
 
 
 class _UbianCardListParser(HTMLParser):
@@ -174,6 +220,11 @@ class UbianApiClient:
                     await self._async_set_active_card(card.snr)
                     page = await self._async_fetch_eshop_page()
 
+                transactions = await self._async_fetch_transactions(
+                    page.transaction_account_id
+                )
+                latest_transaction = transactions[0] if transactions else None
+
                 cards.append(
                     UbianCard(
                         card_id=card.snr,
@@ -186,6 +237,16 @@ class UbianApiClient:
                             "company_name": page.company_name,
                             "credit_status_date": page.credit_status_date,
                             "discount_validity": page.discount_validity,
+                            "latest_transaction": (
+                                latest_transaction.as_dict()
+                                if latest_transaction is not None
+                                else None
+                            ),
+                            "transaction_account_id": page.transaction_account_id,
+                            "transactions": [
+                                transaction.as_dict()
+                                for transaction in transactions
+                            ],
                             "active": card.snr == original_active_card_id,
                         },
                     )
@@ -261,6 +322,26 @@ class UbianApiClient:
             if payload.get("status") != "ok":
                 raise UbianApiError("Ubian did not confirm card selection.")
 
+    async def _async_fetch_transactions(
+        self, transaction_account_id: str | None
+    ) -> list[UbianTransaction]:
+        """Fetch latest transactions for the active Ubian card."""
+        if transaction_account_id is None:
+            return []
+
+        try:
+            async with self._session.get(
+                urljoin(BASE_URL, f"{TRANSACTIONS_PATH}{transaction_account_id}"),
+                headers={"Referer": urljoin(BASE_URL, ESHOP_PATH)},
+            ) as response:
+                if response.status >= 400:
+                    raise UbianApiError("Unable to fetch Ubian card transactions.")
+
+                return _parse_transactions_page(await response.text())
+        except UbianApiError:
+            _LOGGER.debug("Unable to fetch Ubian transactions.", exc_info=True)
+            return []
+
 
 def _parse_eshop_page(html: str) -> _ParsedEshopPage:
     """Parse cards and the active card credit balance from Ubian HTML."""
@@ -276,6 +357,7 @@ def _parse_eshop_page(html: str) -> _ParsedEshopPage:
     status_date_match = STATUS_DATE_PATTERN.search(_clean_html_text(html))
     credit_status_date = status_date_match.group(1) if status_date_match else None
     card_info = _parse_card_info(html)
+    transaction_match = TRANSACTION_LINK_PATTERN.search(html)
 
     return _ParsedEshopPage(
         cards=parser.cards,
@@ -286,6 +368,9 @@ def _parse_eshop_page(html: str) -> _ParsedEshopPage:
         card_validity=card_info.get("Platnosť karty"),
         card_type=card_info.get("Typ karty"),
         discount_validity=card_info.get("Platnosť zľavy"),
+        transaction_account_id=(
+            transaction_match.group(1) if transaction_match is not None else None
+        ),
     )
 
 
@@ -311,3 +396,76 @@ def _parse_card_info(html: str) -> dict[str, str]:
         _clean_html_text(label): _clean_html_text(value)
         for label, value in CARD_INFO_PATTERN.findall(html)
     }
+
+
+def _parse_transactions_page(html: str) -> list[UbianTransaction]:
+    """Parse latest transactions from a Ubian transactions page."""
+    return [
+        transaction
+        for index, row in enumerate(TRANSACTION_ROW_PATTERN.findall(html))
+        if (transaction := _parse_transaction_row(index, row)) is not None
+    ]
+
+
+def _parse_transaction_row(
+    index: int, row: tuple[str, str, str, str]
+) -> UbianTransaction | None:
+    """Parse a transaction table row."""
+    date_cell, description_cell, line_cell, amount_cell = row
+    date_match = TRANSACTION_DATE_PATTERN.search(date_cell)
+    amount_match = TRANSACTION_AMOUNT_PATTERN.search(amount_cell)
+
+    if date_match is None or amount_match is None:
+        return None
+
+    occurred_at = _parse_transaction_datetime(
+        _clean_html_text(date_match.group("date")),
+        date_match.group("time"),
+    )
+    description_parts = _clean_html_text(description_cell).split("|", 1)
+    transaction_type = description_parts[0].strip()
+    merchant = description_parts[1].strip() if len(description_parts) > 1 else None
+    line = _clean_html_text(line_cell) or None
+    amount = _parse_transaction_amount(
+        _clean_html_text(amount_match.group("amount")),
+        amount_match.group("class"),
+    )
+    pdf_match = TRANSACTION_PDF_PATTERN.search(amount_cell)
+    transaction_id = "|".join(
+        [
+            occurred_at,
+            transaction_type,
+            merchant or "",
+            line or "",
+            str(amount),
+            str(index),
+        ]
+    )
+
+    return UbianTransaction(
+        transaction_id=transaction_id,
+        occurred_at=occurred_at,
+        transaction_type=transaction_type,
+        merchant=merchant,
+        line=line,
+        amount=amount,
+        pdf_url=urljoin(BASE_URL, pdf_match.group("pdf")) if pdf_match else None,
+    )
+
+
+def _parse_transaction_datetime(date_value: str, time_value: str) -> str:
+    """Parse a transaction date and time as ISO 8601 local time."""
+    normalized_date = re.sub(r"\s+", " ", date_value)
+    return datetime.strptime(
+        f"{normalized_date} {time_value}", "%d. %m. %Y %H:%M"
+    ).isoformat()
+
+
+def _parse_transaction_amount(value: str, amount_class: str) -> Decimal:
+    """Parse a transaction amount."""
+    normalized = value.replace("\xa0", " ").replace("€", "").replace(" ", "")
+    normalized = normalized.replace(",", ".")
+    amount = Decimal(normalized)
+    if amount_class == "red" and amount > 0:
+        return -amount
+    return amount

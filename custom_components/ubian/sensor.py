@@ -26,6 +26,9 @@ from .const import (
     ATTR_CREDIT_STATUS_DATE,
     ATTR_DESCRIPTION,
     ATTR_DISCOUNT_VALIDITY,
+    ATTR_LATEST_TRANSACTION,
+    ATTR_TRANSACTION_ACCOUNT_ID,
+    ATTR_TRANSACTIONS,
     ATTR_WAS_ACTIVE_ON_UPDATE,
     DOMAIN,
 )
@@ -156,6 +159,9 @@ class UbianCardSensor(
             ATTR_CREDIT_BALANCE: str(card.credit_balance),
             ATTR_CREDIT_STATUS_DATE: card.raw.get(ATTR_CREDIT_STATUS_DATE),
             ATTR_DISCOUNT_VALIDITY: card.raw.get(ATTR_DISCOUNT_VALIDITY),
+            ATTR_LATEST_TRANSACTION: card.raw.get(ATTR_LATEST_TRANSACTION),
+            ATTR_TRANSACTION_ACCOUNT_ID: card.raw.get(ATTR_TRANSACTION_ACCOUNT_ID),
+            ATTR_TRANSACTIONS: card.raw.get(ATTR_TRANSACTIONS),
             ATTR_WAS_ACTIVE_ON_UPDATE: card.raw.get("active"),
         }
 

@@ -29,6 +29,29 @@ card numbers are intentionally omitted.
 9. The response is JSON: `{"status":"ok"}`.
 10. Reload `GET https://www.ubian.sk/eshop` and parse the newly active card.
 
+## Transaction flow
+
+The second ZAP capture shows that transaction history is available per card
+credit account:
+
+1. The card dashboard links to `/transactions/<transaction account id>`.
+2. `GET https://www.ubian.sk/transactions/<transaction account id>` returns an
+   HTML table with the latest transactions.
+3. Each transaction row contains:
+   - date and time
+   - transaction type, for example `Jazda` or `Dobitie kreditu`
+   - carrier/merchant
+   - optional line column
+   - amount
+   - optional PDF receipt link
+4. Older transactions are loaded through
+   `/ajax/transactions/<transaction account id>?from=...&count=10&lastTicket=...`.
+
+The integration currently parses the first transaction page and exposes the
+latest transaction through attributes and an event entity. The AJAX pagination is
+not needed for activity tracking because activity only needs newly observed
+latest transactions.
+
 ## Implementation notes
 
 The current integration uses the web session flow because the ZAP capture did not

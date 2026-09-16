@@ -9,10 +9,11 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import UbianDataUpdateCoordinator
 
-# Preload the platform module to avoid import_module blocking warnings in HA.
+# Preload platform modules to avoid import_module blocking warnings in HA.
+from . import event as _event  # noqa: F401
 from . import sensor as _sensor  # noqa: F401
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.EVENT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

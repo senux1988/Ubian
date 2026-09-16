@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -68,7 +68,7 @@ async def async_setup_entry(
 class UbianSensorDescription(SensorEntityDescription):
     """Describe an Ubian card sensor."""
 
-    value_fn: Callable[[UbianCard], Any]
+    value_fn: Callable[[UbianCard], Any] = field(default=lambda card: None)
 
 
 SENSOR_DESCRIPTIONS: tuple[UbianSensorDescription, ...] = (

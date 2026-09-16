@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ubian",
+        "description": "Enter your Ubian account details.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "update_interval": "Update interval in minutes"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ubian options",
+        "data": {
+          "update_interval": "Update interval in minutes"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "card_credit_balance": {
+        "name": "Credit balance"
+      }
+    }
+  }
+}

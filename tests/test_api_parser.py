@@ -47,6 +47,20 @@ def test_parse_eshop_page_cards_and_active_credit() -> None:
         <span class="company-name long">ARRIVA Test</span>
         <span class="big">Kredit 12,34 €</span>
         <span style="font-size: 12px">Stav k 16.09.2026</span>
+        <ul class="infolist">
+            <li class="item">
+                <strong>Platnosť karty</strong>
+                <p><span>19.09.2030</span></p>
+            </li>
+            <li class="item">
+                <strong>Typ karty</strong>
+                <p>Deti od 6 do 18 rokov</p>
+            </li>
+            <li class="item">
+                <strong>Platnosť zľavy</strong>
+                <p><span>19.09.2030</span></p>
+            </li>
+        </ul>
         """
     )
 
@@ -54,6 +68,9 @@ def test_parse_eshop_page_cards_and_active_credit() -> None:
     assert page.credit_balance == Decimal("12.34")
     assert page.company_name == "ARRIVA Test"
     assert page.credit_status_date == "16.09.2026"
+    assert page.card_validity == "19.09.2030"
+    assert page.card_type == "Deti od 6 do 18 rokov"
+    assert page.discount_validity == "19.09.2030"
     assert [card.snr for card in page.cards] == ["111", "222"]
     assert page.cards[0].description == "Primary Card"
     assert page.cards[0].card_number == "1 1111 1111"

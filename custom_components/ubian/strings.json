@@ -25,7 +25,16 @@
   "entity": {
     "sensor": {
       "card_credit_balance": {
-        "name": "Credit balance"
+        "name": "Výška kreditu"
+      },
+      "card_validity": {
+        "name": "Platnosť karty"
+      },
+      "card_type": {
+        "name": "Typ karty"
+      },
+      "discount_validity": {
+        "name": "Platnosť zľavy"
       }
     }
   }

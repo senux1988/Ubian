@@ -20,10 +20,14 @@ card numbers are intentionally omitted.
    - display card number is stored in `.card-no`
    - the active card is marked by `li.current-card`
 6. Parse the active card balance from the HTML text matching `Kredit <amount> €`.
-7. To read another card, call `POST https://www.ubian.sk/card/set_active` with
+7. Parse active card details from the `.infolist` section:
+   - `Platnosť karty`
+   - `Typ karty`
+   - `Platnosť zľavy`
+8. To read another card, call `POST https://www.ubian.sk/card/set_active` with
    `snr=<card id>` and header `X-Requested-With: XMLHttpRequest`.
-8. The response is JSON: `{"status":"ok"}`.
-9. Reload `GET https://www.ubian.sk/eshop` and parse the newly active card.
+9. The response is JSON: `{"status":"ok"}`.
+10. Reload `GET https://www.ubian.sk/eshop` and parse the newly active card.
 
 ## Implementation notes
 

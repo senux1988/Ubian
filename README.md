@@ -6,8 +6,10 @@ Custom Home Assistant integration for Ubian card credit balances.
 
 - UI configuration with email, password and update interval.
 - Default update interval is 5 minutes.
-- One sensor entity is created for every Ubian card returned by the account.
-- Each entity exposes the card id, description and credit balance as attributes.
+- Sensor entities are created for every Ubian card returned by the account:
+  credit balance, card validity, card type and discount validity.
+- Entities expose card id, display card number, description, carrier and parsed
+  card metadata as attributes.
 - The current API client follows the observed Ubian web flow from OWASP ZAP:
   login, load `/eshop`, parse cards from HTML, temporarily switch active cards
   through `/card/set_active`, and parse each active card balance from `/eshop`.

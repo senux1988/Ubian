@@ -23,6 +23,10 @@ COMPANY_PATTERN = re.compile(
     r'<span class="company-name[^"]*">\s*(.*?)\s*</span>', re.DOTALL
 )
 STATUS_DATE_PATTERN = re.compile(r"Stav k\s*([0-9]{2}\.[0-9]{2}\.[0-9]{4})")
+CARD_INFO_PATTERN = re.compile(
+    r'<li class="item">\s*<strong>(.*?)</strong>\s*<p>(.*?)</p>\s*</li>',
+    re.DOTALL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +68,9 @@ class _ParsedEshopPage:
     credit_balance: Decimal
     company_name: str | None
     credit_status_date: str | None
+    card_validity: str | None
+    card_type: str | None
+    discount_validity: str | None
 
 
 class _UbianCardListParser(HTMLParser):
@@ -174,8 +181,11 @@ class UbianApiClient:
                         credit_balance=page.credit_balance,
                         raw={
                             "card_number": card.card_number,
+                            "card_type": page.card_type,
+                            "card_validity": page.card_validity,
                             "company_name": page.company_name,
                             "credit_status_date": page.credit_status_date,
+                            "discount_validity": page.discount_validity,
                             "active": card.snr == original_active_card_id,
                         },
                     )
@@ -265,6 +275,7 @@ def _parse_eshop_page(html: str) -> _ParsedEshopPage:
 
     status_date_match = STATUS_DATE_PATTERN.search(_clean_html_text(html))
     credit_status_date = status_date_match.group(1) if status_date_match else None
+    card_info = _parse_card_info(html)
 
     return _ParsedEshopPage(
         cards=parser.cards,
@@ -272,6 +283,9 @@ def _parse_eshop_page(html: str) -> _ParsedEshopPage:
         credit_balance=credit_balance,
         company_name=company_name,
         credit_status_date=credit_status_date,
+        card_validity=card_info.get("Platnosť karty"),
+        card_type=card_info.get("Typ karty"),
+        discount_validity=card_info.get("Platnosť zľavy"),
     )
 
 
@@ -289,3 +303,11 @@ def _clean_html_text(value: str) -> str:
     """Return compact text from a small HTML fragment."""
     text = re.sub(r"<[^>]+>", " ", value)
     return re.sub(r"\s+", " ", unescape(text)).strip()
+
+
+def _parse_card_info(html: str) -> dict[str, str]:
+    """Parse labeled card information from the active card page."""
+    return {
+        _clean_html_text(label): _clean_html_text(value)
+        for label, value in CARD_INFO_PATTERN.findall(html)
+    }

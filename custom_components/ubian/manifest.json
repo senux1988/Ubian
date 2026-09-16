@@ -3,7 +3,7 @@
   "name": "Ubian",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/peter-glemba/ubian",
+  "documentation": "https://github.com/senux1988/ubian-homeassistant",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "requirements": [],

@@ -17,3 +17,8 @@ Custom Home Assistant integration for Ubian card credit balances.
 - The ZAP session files contain sensitive data such as credentials and session
   cookies. Do not commit or share them.
 - A sanitized flow summary is available in `docs/zap-analysis.md`.
+
+## HACS
+
+Add this repository as a custom HACS repository with category `Integration`.
+Use a GitHub release, for example `0.1.0`, for the most reliable install path.
